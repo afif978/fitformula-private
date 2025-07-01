@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,275 +7,313 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, MessageCircle, Plus, Send, Search } from 'lucide-react';
+import { Users, MessageCircle, Plus, Send, Search, UserPlus, Check, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+
+interface Friend {
+  friendship_id: string;
+  friend_id: string;
+  friend_name: string;
+  friend_email: string;
+  status: string;
+  is_requester: boolean;
+}
+
+interface User {
+  id: string;
+  full_name: string;
+  email: string;
+}
 
 const Friends = () => {
-  const [friends] = useState([
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      avatar: '',
-      status: 'Lost 5 lbs this month!',
-      streak: 15,
-      lastActive: '2 hours ago',
-      caloriesGoal: 1800,
-      exerciseToday: true
-    },
-    {
-      id: 2,
-      name: 'Mike Chen',
-      avatar: '',
-      status: 'Completed 30-day fitness challenge',
-      streak: 8,
-      lastActive: '1 day ago',
-      caloriesGoal: 2200,
-      exerciseToday: false
-    },
-    {
-      id: 3,
-      name: 'Emma Davis',
-      avatar: '',
-      status: 'New PR on bench press!',
-      streak: 22,
-      lastActive: '30 minutes ago',
-      caloriesGoal: 1900,
-      exerciseToday: true
-    }
-  ]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const { toast } = useToast();
 
-  const [messages, setMessages] = useState({
-    1: [
-      { from: 'Sarah Johnson', message: 'Hey! How was your workout today?', time: '2:30 PM' },
-      { from: 'You', message: 'It was great! Did a 5K run this morning.', time: '2:45 PM' },
-      { from: 'Sarah Johnson', message: 'Awesome! I did yoga. We should plan a workout together soon!', time: '3:00 PM' }
-    ],
-    2: [
-      { from: 'Mike Chen', message: 'Congrats on hitting your calorie goal yesterday!', time: '9:00 AM' },
-      { from: 'You', message: 'Thanks! How is your challenge going?', time: '9:15 AM' }
-    ],
-    3: []
+  // Fetch friends
+  const { data: friends = [], refetch: refetchFriends } = useQuery({
+    queryKey: ['friends'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_friends')
+        .select('*')
+        .eq('status', 'accepted');
+      
+      if (error) throw error;
+      return data as Friend[];
+    }
   });
 
-  const [newMessage, setNewMessage] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFriend, setSelectedFriend] = useState(null);
+  // Fetch pending friend requests
+  const { data: pendingRequests = [], refetch: refetchPending } = useQuery({
+    queryKey: ['pending-requests'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_friends')
+        .select('*')
+        .eq('status', 'pending');
+      
+      if (error) throw error;
+      return data as Friend[];
+    }
+  });
 
-  const sendMessage = (friendId) => {
-    if (newMessage.trim()) {
-      setMessages(prev => ({
-        ...prev,
-        [friendId]: [
-          ...prev[friendId],
-          {
-            from: 'You',
-            message: newMessage,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]
-      }));
-      setNewMessage('');
+  const searchUsers = async () => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data: currentUser } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+        .neq('id', currentUser.user?.id)
+        .limit(10);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to search users',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const getInitials = (name) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const sendFriendRequest = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .insert({
+          requester_id: (await supabase.auth.getUser()).data.user?.id,
+          addressee_id: userId
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Friend request sent!'
+      });
+      
+      refetchPending();
+      setSearchResults([]);
+      setSearchTerm('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send friend request',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const filteredFriends = friends.filter(friend =>
-    friend.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const respondToFriendRequest = async (friendshipId: string, accept: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .update({ status: accept ? 'accepted' : 'rejected' })
+        .eq('id', friendshipId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: accept ? 'Friend request accepted!' : 'Friend request rejected'
+      });
+
+      refetchFriends();
+      refetchPending();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to respond to friend request',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+  };
+
+  const isAlreadyFriend = (userId: string) => {
+    return friends.some(friend => friend.friend_id === userId) ||
+           pendingRequests.some(request => request.friend_id === userId);
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchUsers();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold">Friends & Community</h2>
-        <p className="text-muted-foreground">Stay motivated with your fitness buddies</p>
+        <h2 className="text-2xl font-bold text-white">Friends & Community</h2>
+        <p className="text-gray-300">Connect with other fitness enthusiasts</p>
       </div>
 
       {/* Search and Add Friends */}
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-white">
             <Users className="h-5 w-5" />
             Find Friends
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search for friends..."
+                placeholder="Search by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-gray-700 border-gray-600 text-white"
               />
             </div>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Friend
-            </Button>
+            
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-300">Search Results:</h4>
+                {searchResults.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-blue-600 text-white text-sm">
+                          {getInitials(user.full_name || user.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-white font-medium">{user.full_name || user.email}</p>
+                        <p className="text-gray-400 text-sm">{user.email}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => sendFriendRequest(user.id)}
+                      disabled={isAlreadyFriend(user.id)}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      {isAlreadyFriend(user.id) ? 'Sent' : 'Add'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Friends List */}
-      <div className="grid gap-4">
-        {filteredFriends.map((friend) => (
-          <Card key={friend.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={friend.avatar} />
-                    <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                      {getInitials(friend.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{friend.name}</h3>
-                      {friend.exerciseToday && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          Active today
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{friend.status}</p>
-                    <div className="flex gap-4 mt-2">
-                      <span className="text-xs text-muted-foreground">
-                        🔥 {friend.streak} day streak
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        📍 {friend.lastActive}
-                      </span>
+      {/* Pending Friend Requests */}
+      {pendingRequests.length > 0 && (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">Pending Friend Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingRequests.map((request) => (
+                <div key={request.friendship_id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-blue-600 text-white">
+                        {getInitials(request.friend_name || request.friend_email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-white font-medium">{request.friend_name || request.friend_email}</p>
+                      <p className="text-gray-400 text-sm">
+                        {request.is_requester ? 'Request sent' : 'Wants to be friends'}
+                      </p>
                     </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
+                  {!request.is_requester && (
+                    <div className="flex gap-2">
                       <Button
-                        variant="outline"
+                        onClick={() => respondToFriendRequest(request.friendship_id, true)}
                         size="sm"
-                        onClick={() => setSelectedFriend(friend)}
+                        className="bg-green-600 hover:bg-green-700"
                       >
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        Message
+                        <Check className="h-4 w-4" />
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md max-h-[600px]">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm">
-                              {getInitials(friend.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          {friend.name}
-                        </DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        {/* Messages */}
-                        <div className="max-h-60 overflow-y-auto space-y-3 p-4 bg-gray-50 rounded-lg">
-                          {messages[friend.id]?.map((msg, index) => (
-                            <div
-                              key={index}
-                              className={`flex ${msg.from === 'You' ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div
-                                className={`max-w-[80%] p-3 rounded-lg text-sm ${
-                                  msg.from === 'You'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white border'
-                                }`}
-                              >
-                                <div>{msg.message}</div>
-                                <div className={`text-xs mt-1 ${
-                                  msg.from === 'You' ? 'text-blue-100' : 'text-muted-foreground'
-                                }`}>
-                                  {msg.time}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {messages[friend.id]?.length === 0 && (
-                            <div className="text-center text-muted-foreground py-4">
-                              Start a conversation with {friend.name}!
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Message Input */}
-                        <div className="flex gap-2">
-                          <Textarea
-                            placeholder="Type your message..."
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            className="min-h-[60px]"
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                sendMessage(friend.id);
-                              }
-                            }}
-                          />
-                          <Button
-                            onClick={() => sendMessage(friend.id)}
-                            size="sm"
-                            className="h-[60px]"
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      <Button
+                        onClick={() => respondToFriendRequest(request.friendship_id, false)}
+                        size="sm"
+                        variant="outline"
+                        className="border-gray-600 text-gray-300 hover:bg-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-              
-              {/* Friend Stats */}
-              <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <div className="text-lg font-bold text-blue-600">{friend.caloriesGoal}</div>
-                  <div className="text-xs text-muted-foreground">Daily Goal</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-green-600">{friend.streak}</div>
-                  <div className="text-xs text-muted-foreground">Day Streak</div>
-                </div>
-              </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Friends List */}
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-white">Your Friends ({friends.length})</h3>
+        {friends.length === 0 ? (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="pt-6 text-center">
+              <p className="text-gray-400">No friends yet. Search for people to add as friends!</p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          friends.map((friend) => (
+            <Card key={friend.friendship_id} className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                        {getInitials(friend.friend_name || friend.friend_email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">{friend.friend_name || friend.friend_email}</h3>
+                        <Badge variant="secondary" className="bg-green-900 text-green-300">
+                          Friends
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-400">{friend.friend_email}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-600"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-1" />
+                    Message
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
-
-      {/* Motivational Section */}
-      <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <h3 className="text-xl font-bold mb-2">Community Challenge</h3>
-            <p className="mb-4 opacity-90">Join this week's fitness challenge and compete with friends!</p>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold">1,247</div>
-                <div className="text-sm opacity-80">Participants</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">4 days</div>
-                <div className="text-sm opacity-80">Remaining</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">#12</div>
-                <div className="text-sm opacity-80">Your Rank</div>
-              </div>
-            </div>
-            <Button variant="secondary" className="mt-4">
-              View Challenge
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

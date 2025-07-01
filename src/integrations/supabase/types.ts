@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -35,7 +62,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_friends: {
+        Row: {
+          created_at: string | null
+          friend_email: string | null
+          friend_id: string | null
+          friend_name: string | null
+          friendship_id: string | null
+          is_requester: boolean | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

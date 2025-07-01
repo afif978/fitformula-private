@@ -11,6 +11,7 @@ import ExerciseLog from '@/components/ExerciseLog';
 import UserProfile from '@/components/UserProfile';
 import Friends from '@/components/Friends';
 import WorkoutSuggestions from '@/components/WorkoutSuggestions';
+import LogoutButton from '@/components/LogoutButton';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -30,9 +31,12 @@ const Index = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-white">
-          Your Fitness Journey
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold text-white">
+            Your Fitness Journey
+          </h1>
+          <LogoutButton />
+        </div>
         <p className="text-white mt-2">Track, achieve, and celebrate your progress</p>
       </div>
 

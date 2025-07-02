@@ -17,6 +17,7 @@ interface Friend {
   friend_id: string;
   friend_name: string;
   friend_email: string;
+  friend_age?: number;
   status: string;
   is_requester: boolean;
 }
@@ -25,12 +26,16 @@ interface User {
   id: string;
   full_name: string;
   email: string;
+  age?: number;
 }
 
 const Friends = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [messageContent, setMessageContent] = useState('');
   const { toast } = useToast();
 
   // Fetch friends
@@ -72,7 +77,7 @@ const Friends = () => {
       const { data: currentUser } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, age')
         .or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
         .neq('id', currentUser.user?.id)
         .limit(10);
@@ -143,6 +148,28 @@ const Friends = () => {
     }
   };
 
+  const sendMessage = async () => {
+    if (!messageContent.trim() || !selectedFriend) return;
+
+    try {
+      // For now, we'll just show a toast. In a real app, you'd store messages in a database
+      toast({
+        title: 'Message Sent',
+        description: `Message sent to ${selectedFriend.friend_name}!`
+      });
+      
+      setMessageContent('');
+      setMessageDialogOpen(false);
+      setSelectedFriend(null);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to send message',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const getInitials = (name: string) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
   };
@@ -150,6 +177,11 @@ const Friends = () => {
   const isAlreadyFriend = (userId: string) => {
     return friends.some(friend => friend.friend_id === userId) ||
            pendingRequests.some(request => request.friend_id === userId);
+  };
+
+  const formatUserDisplay = (user: User) => {
+    const age = user.age ? `, ${user.age}` : '';
+    return `${user.full_name || user.email}${age}`;
   };
 
   useEffect(() => {
@@ -200,7 +232,7 @@ const Friends = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-white font-medium">{user.full_name || user.email}</p>
+                        <p className="text-white font-medium">{formatUserDisplay(user)}</p>
                         <p className="text-gray-400 text-sm">{user.email}</p>
                       </div>
                     </div>
@@ -238,7 +270,10 @@ const Friends = () => {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-white font-medium">{request.friend_name || request.friend_email}</p>
+                      <p className="text-white font-medium">
+                        {request.friend_name || request.friend_email}
+                        {request.friend_age && `, ${request.friend_age}`}
+                      </p>
                       <p className="text-gray-400 text-sm">
                         {request.is_requester ? 'Request sent' : 'Wants to be friends'}
                       </p>
@@ -292,7 +327,10 @@ const Friends = () => {
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-white">{friend.friend_name || friend.friend_email}</h3>
+                        <h3 className="font-semibold text-white">
+                          {friend.friend_name || friend.friend_email}
+                          {friend.friend_age && `, ${friend.friend_age}`}
+                        </h3>
                         <Badge variant="secondary" className="bg-green-900 text-green-300">
                           Friends
                         </Badge>
@@ -304,6 +342,10 @@ const Friends = () => {
                     variant="outline"
                     size="sm"
                     className="border-gray-600 text-gray-300 hover:bg-gray-600"
+                    onClick={() => {
+                      setSelectedFriend(friend);
+                      setMessageDialogOpen(true);
+                    }}
                   >
                     <MessageCircle className="h-4 w-4 mr-1" />
                     Message
@@ -314,6 +356,46 @@ const Friends = () => {
           ))
         )}
       </div>
+
+      {/* Message Dialog */}
+      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
+        <DialogContent className="bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Send Message to {selectedFriend?.friend_name || selectedFriend?.friend_email}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              placeholder="Type your message..."
+              value={messageContent}
+              onChange={(e) => setMessageContent(e.target.value)}
+              className="bg-gray-700 border-gray-600 text-white min-h-[100px]"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMessageDialogOpen(false);
+                  setMessageContent('');
+                  setSelectedFriend(null);
+                }}
+                className="border-gray-600 text-gray-300 hover:bg-gray-600"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={sendMessage}
+                disabled={!messageContent.trim()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Send className="h-4 w-4 mr-1" />
+                Send Message
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

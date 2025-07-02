@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { User, Mail, Calendar, Target, Activity, Award } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -21,9 +24,90 @@ const UserProfile = () => {
     fitnessGoal: ''
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Here you would typically save to your backend
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        if (data) {
+          setProfile({
+            name: data.full_name || '',
+            email: data.email || user.email || '',
+            age: data.age?.toString() || '',
+            height: data.height?.toString() || '',
+            currentWeight: data.current_weight?.toString() || '',
+            goalWeight: data.goal_weight?.toString() || '',
+            activityLevel: data.activity_level || '',
+            fitnessGoal: data.fitness_goal || ''
+          });
+        } else {
+          setProfile(prev => ({ ...prev, email: user.email || '' }));
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load profile',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const profileData = {
+        id: user.id,
+        full_name: profile.name,
+        email: profile.email,
+        age: profile.age ? parseInt(profile.age) : null,
+        height: profile.height ? parseInt(profile.height) : null,
+        current_weight: profile.currentWeight ? parseFloat(profile.currentWeight) : null,
+        goal_weight: profile.goalWeight ? parseFloat(profile.goalWeight) : null,
+        activity_level: profile.activityLevel,
+        fitness_goal: profile.fitnessGoal,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Profile updated successfully!'
+      });
+      
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update profile',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stats = [
@@ -52,9 +136,10 @@ const UserProfile = () => {
               <Button
                 variant="outline"
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                disabled={loading}
                 className="border-gray-600 text-white hover:bg-gray-700"
               >
-                {isEditing ? 'Save' : 'Edit'}
+                {isEditing ? (loading ? 'Saving...' : 'Save') : 'Edit'}
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -76,9 +161,7 @@ const UserProfile = () => {
                     id="email"
                     type="email"
                     value={profile.email}
-                    onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                    disabled={!isEditing}
-                    placeholder="Enter your email"
+                    disabled={true}
                     className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
                   />
                 </div>
@@ -127,6 +210,28 @@ const UserProfile = () => {
                     onChange={(e) => setProfile(prev => ({ ...prev, goalWeight: e.target.value }))}
                     disabled={!isEditing}
                     placeholder="Enter goal weight"
+                    className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="activityLevel" className="text-white">Activity Level</Label>
+                  <Input
+                    id="activityLevel"
+                    value={profile.activityLevel}
+                    onChange={(e) => setProfile(prev => ({ ...prev, activityLevel: e.target.value }))}
+                    disabled={!isEditing}
+                    placeholder="e.g., Sedentary, Active, Very Active"
+                    className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fitnessGoal" className="text-white">Fitness Goal</Label>
+                  <Input
+                    id="fitnessGoal"
+                    value={profile.fitnessGoal}
+                    onChange={(e) => setProfile(prev => ({ ...prev, fitnessGoal: e.target.value }))}
+                    disabled={!isEditing}
+                    placeholder="e.g., Weight Loss, Muscle Gain, Endurance"
                     className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
                   />
                 </div>

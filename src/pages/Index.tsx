@@ -16,28 +16,33 @@ import LogoutButton from '@/components/LogoutButton';
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [userStats] = useState({
-    caloriesConsumed: 1450,
+    caloriesConsumed: 0,
     caloriesGoal: 2000,
-    exerciseCaloriesBurned: 350,
-    currentWeight: 165,
-    goalWeight: 155,
-    startWeight: 175
+    exerciseCaloriesBurned: 0,
+    currentWeight: 0,
+    goalWeight: 0,
+    startWeight: 0
   });
 
   const caloriesRemaining = userStats.caloriesGoal - userStats.caloriesConsumed + userStats.exerciseCaloriesBurned;
-  const progressPercentage = ((userStats.startWeight - userStats.currentWeight) / (userStats.startWeight - userStats.goalWeight)) * 100;
+  const progressPercentage = userStats.startWeight > 0 && userStats.goalWeight > 0 
+    ? ((userStats.startWeight - userStats.currentWeight) / (userStats.startWeight - userStats.goalWeight)) * 100 
+    : 0;
 
   const renderDashboard = () => (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Centered */}
       <div className="text-center">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-3xl font-bold text-white">
-            Your Fitness Journey
-          </h1>
+          <div></div> {/* Empty div for spacing */}
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-white">
+              Your Fitness Journey
+            </h1>
+            <p className="text-white mt-2">Track, achieve, and celebrate your progress</p>
+          </div>
           <LogoutButton />
         </div>
-        <p className="text-white mt-2">Track, achieve, and celebrate your progress</p>
       </div>
 
       {/* Stats Cards */}
@@ -52,7 +57,7 @@ const Index = () => {
             <p className="text-xs text-white">
               Goal: {userStats.caloriesGoal} | Consumed: {userStats.caloriesConsumed} | Burned: {userStats.exerciseCaloriesBurned}
             </p>
-            <Progress value={(userStats.caloriesConsumed / userStats.caloriesGoal) * 100} className="mt-2" />
+            <Progress value={userStats.caloriesGoal > 0 ? (userStats.caloriesConsumed / userStats.caloriesGoal) * 100 : 0} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -64,7 +69,7 @@ const Index = () => {
           <CardContent>
             <div className="text-2xl font-bold text-white">{userStats.exerciseCaloriesBurned}</div>
             <p className="text-xs text-white">calories burned</p>
-            <Badge variant="secondary" className="mt-2 bg-blue-500 text-white">2 workouts completed</Badge>
+            <Badge variant="secondary" className="mt-2 bg-blue-500 text-white">0 workouts completed</Badge>
           </CardContent>
         </Card>
 
@@ -74,9 +79,9 @@ const Index = () => {
             <Target className="h-4 w-4 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{userStats.currentWeight} lbs</div>
+            <div className="text-2xl font-bold text-white">{userStats.currentWeight || 0} lbs</div>
             <p className="text-xs text-white">
-              Goal: {userStats.goalWeight} lbs | Lost: {userStats.startWeight - userStats.currentWeight} lbs
+              Goal: {userStats.goalWeight || 0} lbs | Lost: {Math.max(0, userStats.startWeight - userStats.currentWeight)} lbs
             </p>
             <Progress value={progressPercentage} className="mt-2" />
           </CardContent>
@@ -122,17 +127,8 @@ const Index = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-white">Breakfast</span>
-              <Badge variant="outline" className="border-gray-600 text-white">420 cal</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-white">Lunch</span>
-              <Badge variant="outline" className="border-gray-600 text-white">650 cal</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-white">Dinner</span>
-              <Badge variant="outline" className="border-gray-600 text-white">380 cal</Badge>
+            <div className="text-center text-gray-400 py-8">
+              No meals logged yet. Start by logging your first meal!
             </div>
             <div className="border-t border-gray-600 pt-2 flex justify-between items-center font-semibold">
               <span className="text-white">Total</span>

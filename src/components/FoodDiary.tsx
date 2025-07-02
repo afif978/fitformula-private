@@ -12,33 +12,86 @@ const FoodDiary = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMeal, setSelectedMeal] = useState('breakfast');
   const [meals, setMeals] = useState({
-    breakfast: [
-      { name: 'Oatmeal with Berries', calories: 280, serving: '1 cup' },
-      { name: 'Greek Yogurt', calories: 140, serving: '1 container' }
-    ],
-    lunch: [
-      { name: 'Grilled Chicken Salad', calories: 350, serving: '1 large bowl' },
-      { name: 'Whole Wheat Bread', calories: 80, serving: '1 slice' }
-    ],
-    dinner: [
-      { name: 'Salmon Fillet', calories: 280, serving: '6 oz' },
-      { name: 'Steamed Broccoli', calories: 60, serving: '1 cup' }
-    ],
-    snacks: [
-      { name: 'Apple', calories: 80, serving: '1 medium' },
-      { name: 'Almonds', calories: 160, serving: '1 oz' }
-    ]
+    breakfast: [],
+    lunch: [],
+    dinner: [],
+    snacks: []
   });
 
+  // Comprehensive food database for search
   const foodDatabase = [
+    // Fruits
+    { name: 'Apple', calories: 95, serving: '1 medium' },
     { name: 'Banana', calories: 105, serving: '1 medium' },
-    { name: 'Chicken Breast', calories: 165, serving: '3.5 oz' },
-    { name: 'Brown Rice', calories: 112, serving: '1/2 cup cooked' },
+    { name: 'Orange', calories: 62, serving: '1 medium' },
+    { name: 'Grapes', calories: 62, serving: '1 cup' },
+    { name: 'Strawberries', calories: 49, serving: '1 cup' },
+    { name: 'Blueberries', calories: 84, serving: '1 cup' },
     { name: 'Avocado', calories: 234, serving: '1 whole' },
-    { name: 'Eggs', calories: 70, serving: '1 large' },
-    { name: 'Sweet Potato', calories: 112, serving: '1 medium' },
+    { name: 'Pear', calories: 102, serving: '1 medium' },
+    { name: 'Peach', calories: 59, serving: '1 medium' },
+    { name: 'Pineapple', calories: 82, serving: '1 cup chunks' },
+    
+    // Vegetables
+    { name: 'Broccoli', calories: 55, serving: '1 cup' },
     { name: 'Spinach', calories: 7, serving: '1 cup' },
-    { name: 'Quinoa', calories: 111, serving: '1/2 cup cooked' }
+    { name: 'Carrots', calories: 52, serving: '1 cup' },
+    { name: 'Bell Pepper', calories: 31, serving: '1 cup' },
+    { name: 'Tomato', calories: 32, serving: '1 medium' },
+    { name: 'Cucumber', calories: 16, serving: '1 cup sliced' },
+    { name: 'Lettuce', calories: 10, serving: '2 cups' },
+    { name: 'Cauliflower', calories: 25, serving: '1 cup' },
+    { name: 'Zucchini', calories: 20, serving: '1 cup sliced' },
+    { name: 'Sweet Potato', calories: 112, serving: '1 medium' },
+    
+    // Proteins
+    { name: 'Chicken Breast', calories: 165, serving: '3.5 oz' },
+    { name: 'Salmon Fillet', calories: 206, serving: '3.5 oz' },
+    { name: 'Ground Turkey', calories: 125, serving: '3.5 oz' },
+    { name: 'Eggs', calories: 70, serving: '1 large' },
+    { name: 'Greek Yogurt', calories: 130, serving: '1 cup' },
+    { name: 'Tuna', calories: 154, serving: '3.5 oz' },
+    { name: 'Lean Beef', calories: 250, serving: '3.5 oz' },
+    { name: 'Tofu', calories: 94, serving: '3.5 oz' },
+    { name: 'Cottage Cheese', calories: 98, serving: '1/2 cup' },
+    { name: 'Shrimp', calories: 99, serving: '3.5 oz' },
+    
+    // Grains & Carbs
+    { name: 'Brown Rice', calories: 112, serving: '1/2 cup cooked' },
+    { name: 'Quinoa', calories: 111, serving: '1/2 cup cooked' },
+    { name: 'Oatmeal', calories: 150, serving: '1 cup cooked' },
+    { name: 'Whole Wheat Bread', calories: 80, serving: '1 slice' },
+    { name: 'Sweet Potato', calories: 112, serving: '1 medium' },
+    { name: 'Pasta', calories: 220, serving: '1 cup cooked' },
+    { name: 'White Rice', calories: 130, serving: '1/2 cup cooked' },
+    { name: 'Bagel', calories: 245, serving: '1 small' },
+    
+    // Nuts & Seeds
+    { name: 'Almonds', calories: 160, serving: '1 oz (23 nuts)' },
+    { name: 'Walnuts', calories: 185, serving: '1 oz' },
+    { name: 'Peanut Butter', calories: 190, serving: '2 tbsp' },
+    { name: 'Chia Seeds', calories: 140, serving: '1 oz' },
+    { name: 'Cashews', calories: 157, serving: '1 oz' },
+    { name: 'Sunflower Seeds', calories: 165, serving: '1 oz' },
+    
+    // Dairy
+    { name: 'Milk (2%)', calories: 122, serving: '1 cup' },
+    { name: 'Cheddar Cheese', calories: 113, serving: '1 oz' },
+    { name: 'Mozzarella', calories: 85, serving: '1 oz' },
+    { name: 'Yogurt', calories: 150, serving: '1 cup' },
+    
+    // Beverages
+    { name: 'Green Tea', calories: 2, serving: '1 cup' },
+    { name: 'Coffee (black)', calories: 2, serving: '1 cup' },
+    { name: 'Orange Juice', calories: 112, serving: '1 cup' },
+    { name: 'Protein Shake', calories: 120, serving: '1 scoop' },
+    
+    // Snacks
+    { name: 'Dark Chocolate', calories: 170, serving: '1 oz' },
+    { name: 'Granola Bar', calories: 120, serving: '1 bar' },
+    { name: 'Rice Cakes', calories: 35, serving: '1 cake' },
+    { name: 'Hummus', calories: 25, serving: '1 tbsp' },
+    { name: 'Crackers', calories: 16, serving: '1 cracker' }
   ];
 
   const filteredFoods = foodDatabase.filter(food =>
@@ -61,46 +114,46 @@ const FoodDiary = () => {
   };
 
   const renderMealSection = (mealType, title, icon) => (
-    <Card key={mealType} className="hover:shadow-md transition-shadow">
+    <Card key={mealType} className="hover:shadow-md transition-shadow bg-gray-800 border-gray-700">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2 text-lg">
+        <CardTitle className="flex items-center gap-2 text-lg text-white">
           {icon}
           {title}
-          <Badge variant="secondary">{getTotalCalories(mealType)} cal</Badge>
+          <Badge variant="secondary" className="bg-blue-600 text-white">{getTotalCalories(mealType)} cal</Badge>
         </CardTitle>
         <Dialog>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setSelectedMeal(mealType)}>
+            <Button size="sm" onClick={() => setSelectedMeal(mealType)} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-4 w-4 mr-1" />
               Add Food
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md bg-gray-800 border-gray-700 text-white">
             <DialogHeader>
-              <DialogTitle>Add Food to {title}</DialogTitle>
+              <DialogTitle className="text-white">Add Food to {title}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search foods..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                 />
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {filteredFoods.map((food, index) => (
                   <div
                     key={index}
-                    className="flex justify-between items-center p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                    className="flex justify-between items-center p-3 border border-gray-600 rounded-lg hover:bg-gray-700 cursor-pointer"
                     onClick={() => addFoodToMeal(food, mealType)}
                   >
                     <div>
-                      <div className="font-medium">{food.name}</div>
-                      <div className="text-sm text-muted-foreground">{food.serving}</div>
+                      <div className="font-medium text-white">{food.name}</div>
+                      <div className="text-sm text-gray-400">{food.serving}</div>
                     </div>
-                    <Badge>{food.calories} cal</Badge>
+                    <Badge className="bg-blue-600 text-white">{food.calories} cal</Badge>
                   </div>
                 ))}
               </div>
@@ -111,16 +164,16 @@ const FoodDiary = () => {
       <CardContent>
         <div className="space-y-2">
           {meals[mealType].map((food, index) => (
-            <div key={index} className="flex justify-between items-center py-2 border-b last:border-b-0">
+            <div key={index} className="flex justify-between items-center py-2 border-b border-gray-600 last:border-b-0">
               <div>
-                <div className="font-medium">{food.name}</div>
-                <div className="text-sm text-muted-foreground">{food.serving}</div>
+                <div className="font-medium text-white">{food.name}</div>
+                <div className="text-sm text-gray-400">{food.serving}</div>
               </div>
-              <Badge variant="outline">{food.calories} cal</Badge>
+              <Badge variant="outline" className="border-gray-600 text-white">{food.calories} cal</Badge>
             </div>
           ))}
           {meals[mealType].length === 0 && (
-            <div className="text-center text-muted-foreground py-4">
+            <div className="text-center text-gray-400 py-4">
               No foods logged yet
             </div>
           )}
@@ -132,8 +185,8 @@ const FoodDiary = () => {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold">Food Diary</h2>
-        <p className="text-muted-foreground">Track your daily nutrition</p>
+        <h2 className="text-2xl font-bold text-white">Food Diary</h2>
+        <p className="text-white">Track your daily nutrition</p>
       </div>
 
       {/* Daily Summary */}

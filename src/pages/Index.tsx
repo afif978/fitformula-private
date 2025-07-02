@@ -1,40 +1,72 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Target, Activity, Users, Utensils } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import FoodDiary from '@/components/FoodDiary';
 import ExerciseLog from '@/components/ExerciseLog';
 import UserProfile from '@/components/UserProfile';
 import Friends from '@/components/Friends';
 import WorkoutSuggestions from '@/components/WorkoutSuggestions';
 import LogoutButton from '@/components/LogoutButton';
+import DateSelector from '@/components/DateSelector';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [userStats] = useState({
-    caloriesConsumed: 0,
-    caloriesGoal: 2000,
-    exerciseCaloriesBurned: 0,
-    currentWeight: 0,
-    goalWeight: 0,
-    startWeight: 0
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Format date for database queries
+  const formatDateForDB = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  // Fetch daily food logs
+  const { data: foodLogs = [] } = useQuery({
+    queryKey: ['dailyFoodLogs', formatDateForDB(selectedDate)],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_food_logs')
+        .select('*')
+        .eq('date', formatDateForDB(selectedDate))
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    }
   });
 
-  const caloriesRemaining = userStats.caloriesGoal - userStats.caloriesConsumed + userStats.exerciseCaloriesBurned;
-  const progressPercentage = userStats.startWeight > 0 && userStats.goalWeight > 0 
-    ? ((userStats.startWeight - userStats.currentWeight) / (userStats.startWeight - userStats.goalWeight)) * 100 
-    : 0;
+  // Fetch daily exercise logs
+  const { data: exerciseLogs = [] } = useQuery({
+    queryKey: ['dailyExerciseLogs', formatDateForDB(selectedDate)],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_exercise_logs')
+        .select('*')
+        .eq('date', formatDateForDB(selectedDate))
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Calculate daily stats
+  const totalCaloriesConsumed = foodLogs.reduce((total, log) => total + log.calories, 0);
+  const totalCaloriesBurned = exerciseLogs.reduce((total, log) => total + log.calories, 0);
+  const caloriesGoal = 2000; // This could be user-configurable later
+  const caloriesRemaining = caloriesGoal - totalCaloriesConsumed + totalCaloriesBurned;
 
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Header - Centered */}
       <div className="text-center">
         <div className="flex justify-between items-center mb-4">
-          <div></div> {/* Empty div for spacing */}
+          <div></div>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-white">
               Your Fitness Journey
@@ -43,6 +75,11 @@ const Index = () => {
           </div>
           <LogoutButton />
         </div>
+      </div>
+
+      {/* Date Selector */}
+      <div className="flex justify-center mb-6">
+        <DateSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
       </div>
 
       {/* Stats Cards */}
@@ -55,9 +92,9 @@ const Index = () => {
           <CardContent>
             <div className="text-2xl font-bold text-white">{caloriesRemaining}</div>
             <p className="text-xs text-white">
-              Goal: {userStats.caloriesGoal} | Consumed: {userStats.caloriesConsumed} | Burned: {userStats.exerciseCaloriesBurned}
+              Goal: {caloriesGoal} | Consumed: {totalCaloriesConsumed} | Burned: {totalCaloriesBurned}
             </p>
-            <Progress value={userStats.caloriesGoal > 0 ? (userStats.caloriesConsumed / userStats.caloriesGoal) * 100 : 0} className="mt-2" />
+            <Progress value={caloriesGoal > 0 ? (totalCaloriesConsumed / caloriesGoal) * 100 : 0} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -67,9 +104,9 @@ const Index = () => {
             <Activity className="h-4 w-4 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{userStats.exerciseCaloriesBurned}</div>
+            <div className="text-2xl font-bold text-white">{totalCaloriesBurned}</div>
             <p className="text-xs text-white">calories burned</p>
-            <Badge variant="secondary" className="mt-2 bg-blue-500 text-white">0 workouts completed</Badge>
+            <Badge variant="secondary" className="mt-2 bg-blue-500 text-white">{exerciseLogs.length} workouts completed</Badge>
           </CardContent>
         </Card>
 
@@ -79,11 +116,11 @@ const Index = () => {
             <Target className="h-4 w-4 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{userStats.currentWeight || 0} lbs</div>
+            <div className="text-2xl font-bold text-white">0 lbs</div>
             <p className="text-xs text-white">
-              Goal: {userStats.goalWeight || 0} lbs | Lost: {Math.max(0, userStats.startWeight - userStats.currentWeight)} lbs
+              Goal: 0 lbs | Lost: 0 lbs
             </p>
-            <Progress value={progressPercentage} className="mt-2" />
+            <Progress value={0} className="mt-2" />
           </CardContent>
         </Card>
       </div>
@@ -123,16 +160,30 @@ const Index = () => {
       {/* Today's Summary */}
       <Card className="bg-gray-800 border-gray-700 text-white">
         <CardHeader>
-          <CardTitle className="text-lg text-white">Today's Summary</CardTitle>
+          <CardTitle className="text-lg text-white">Daily Summary</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="text-center text-gray-400 py-8">
-              No meals logged yet. Start by logging your first meal!
-            </div>
+            {foodLogs.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">
+                No meals logged yet. Start by logging your first meal!
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {foodLogs.slice(0, 3).map((log, index) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-white">{log.food_name}</span>
+                    <Badge className="bg-blue-600 text-white">{log.calories} cal</Badge>
+                  </div>
+                ))}
+                {foodLogs.length > 3 && (
+                  <p className="text-gray-400 text-sm">...and {foodLogs.length - 3} more items</p>
+                )}
+              </div>
+            )}
             <div className="border-t border-gray-600 pt-2 flex justify-between items-center font-semibold">
               <span className="text-white">Total</span>
-              <Badge className="bg-blue-600 text-white">{userStats.caloriesConsumed} cal</Badge>
+              <Badge className="bg-blue-600 text-white">{totalCaloriesConsumed} cal</Badge>
             </div>
           </div>
         </CardContent>
@@ -158,11 +209,11 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="food">
-            <FoodDiary />
+            <FoodDiary selectedDate={selectedDate} onDateChange={setSelectedDate} />
           </TabsContent>
 
           <TabsContent value="exercise">
-            <ExerciseLog />
+            <ExerciseLog selectedDate={selectedDate} onDateChange={setSelectedDate} />
           </TabsContent>
 
           <TabsContent value="workouts">

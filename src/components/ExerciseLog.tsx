@@ -5,36 +5,95 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Activity, Plus, Clock, Flame } from 'lucide-react';
+import { Activity, Plus, Clock, Flame, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import DateSelector from './DateSelector';
 
-const ExerciseLog = () => {
-  const [exercises, setExercises] = useState([
-    { 
-      name: 'Morning Run', 
-      type: 'Cardio', 
-      duration: 30, 
-      calories: 250, 
-      time: '7:00 AM',
-      intensity: 'Moderate'
-    },
-    { 
-      name: 'Weight Training', 
-      type: 'Strength', 
-      duration: 45, 
-      calories: 200, 
-      time: '6:00 PM',
-      intensity: 'High'
-    }
-  ]);
+interface ExerciseLogProps {
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
+}
 
+const ExerciseLog = ({ selectedDate, onDateChange }: ExerciseLogProps) => {
   const [newExercise, setNewExercise] = useState({
     name: '',
     type: '',
     duration: '',
     calories: '',
     intensity: ''
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const formatDateForDB = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  // Fetch daily exercise logs
+  const { data: exercises = [] } = useQuery({
+    queryKey: ['dailyExerciseLogs', formatDateForDB(selectedDate)],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_exercise_logs')
+        .select('*')
+        .eq('date', formatDateForDB(selectedDate))
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Add exercise mutation
+  const addExerciseMutation = useMutation({
+    mutationFn: async (exerciseData: any) => {
+      const { error } = await supabase
+        .from('daily_exercise_logs')
+        .insert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          date: formatDateForDB(selectedDate),
+          ...exerciseData
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailyExerciseLogs'] });
+      toast({ title: "Exercise added successfully!" });
+      setNewExercise({
+        name: '',
+        type: '',
+        duration: '',
+        calories: '',
+        intensity: ''
+      });
+    },
+    onError: () => {
+      toast({ title: "Error adding exercise", variant: "destructive" });
+    }
+  });
+
+  // Remove exercise mutation
+  const removeExerciseMutation = useMutation({
+    mutationFn: async (logId: string) => {
+      const { error } = await supabase
+        .from('daily_exercise_logs')
+        .delete()
+        .eq('id', logId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailyExerciseLogs'] });
+      toast({ title: "Exercise removed successfully!" });
+    },
+    onError: () => {
+      toast({ title: "Error removing exercise", variant: "destructive" });
+    }
   });
 
   const exerciseTypes = [
@@ -55,22 +114,18 @@ const ExerciseLog = () => {
         ? selectedExercise.caloriesPerMin * parseInt(newExercise.duration)
         : parseInt(newExercise.calories) || 0;
 
-      setExercises(prev => [...prev, {
-        ...newExercise,
+      addExerciseMutation.mutate({
+        exercise_name: newExercise.name,
+        exercise_type: selectedExercise?.type || 'Other',
         duration: parseInt(newExercise.duration),
         calories: estimatedCalories,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: selectedExercise?.type || 'Other'
-      }]);
-
-      setNewExercise({
-        name: '',
-        type: '',
-        duration: '',
-        calories: '',
-        intensity: ''
+        intensity: newExercise.intensity
       });
     }
+  };
+
+  const removeExercise = (logId: string) => {
+    removeExerciseMutation.mutate(logId);
   };
 
   const getTotalCaloriesBurned = () => {
@@ -81,7 +136,7 @@ const ExerciseLog = () => {
     return exercises.reduce((total, exercise) => total + exercise.duration, 0);
   };
 
-  const getIntensityColor = (intensity) => {
+  const getIntensityColor = (intensity: string) => {
     switch (intensity.toLowerCase()) {
       case 'low': return 'bg-green-100 text-green-800';
       case 'moderate': return 'bg-yellow-100 text-yellow-800';
@@ -93,8 +148,13 @@ const ExerciseLog = () => {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold">Exercise Log</h2>
-        <p className="text-muted-foreground">Track your workouts and stay active</p>
+        <h2 className="text-2xl font-bold text-white">Exercise Log</h2>
+        <p className="text-white">Track your workouts and stay active</p>
+      </div>
+
+      {/* Date Selector */}
+      <div className="flex justify-center">
+        <DateSelector selectedDate={selectedDate} onDateChange={onDateChange} />
       </div>
 
       {/* Daily Summary */}
@@ -125,9 +185,9 @@ const ExerciseLog = () => {
       </div>
 
       {/* Add Exercise */}
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-white">
             <Plus className="h-5 w-5" />
             Log New Exercise
           </CardTitle>
@@ -135,14 +195,14 @@ const ExerciseLog = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="exercise-name">Exercise</Label>
+              <Label htmlFor="exercise-name" className="text-white">Exercise</Label>
               <Select value={newExercise.name} onValueChange={(value) => setNewExercise(prev => ({ ...prev, name: value }))}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                   <SelectValue placeholder="Select exercise" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-800 border-gray-600">
                   {exerciseTypes.map((exercise, index) => (
-                    <SelectItem key={index} value={exercise.name}>
+                    <SelectItem key={index} value={exercise.name} className="text-white hover:bg-gray-700">
                       {exercise.name} ({exercise.type})
                     </SelectItem>
                   ))}
@@ -151,32 +211,33 @@ const ExerciseLog = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Duration (minutes)</Label>
+              <Label htmlFor="duration" className="text-white">Duration (minutes)</Label>
               <Input
                 id="duration"
                 type="number"
                 placeholder="30"
                 value={newExercise.duration}
                 onChange={(e) => setNewExercise(prev => ({ ...prev, duration: e.target.value }))}
+                className="bg-gray-700 border-gray-600 text-white"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="intensity">Intensity</Label>
+              <Label htmlFor="intensity" className="text-white">Intensity</Label>
               <Select value={newExercise.intensity} onValueChange={(value) => setNewExercise(prev => ({ ...prev, intensity: value }))}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                   <SelectValue placeholder="Select intensity" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Moderate">Moderate</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="Low" className="text-white hover:bg-gray-700">Low</SelectItem>
+                  <SelectItem value="Moderate" className="text-white hover:bg-gray-700">Moderate</SelectItem>
+                  <SelectItem value="High" className="text-white hover:bg-gray-700">High</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex items-end">
-              <Button onClick={addExercise} className="w-full">
+              <Button onClick={addExercise} className="w-full bg-blue-600 hover:bg-blue-700">
                 Add Exercise
               </Button>
             </div>
@@ -185,35 +246,43 @@ const ExerciseLog = () => {
       </Card>
 
       {/* Exercise List */}
-      <Card>
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle>Today's Workouts</CardTitle>
+          <CardTitle className="text-white">Today's Workouts</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {exercises.map((exercise, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent">
+            {exercises.map((exercise) => (
+              <div key={exercise.id} className="flex items-center justify-between p-4 border border-gray-600 rounded-lg hover:bg-gray-700">
                 <div className="flex items-center gap-4">
                   <div className="p-2 rounded-full bg-blue-100">
                     <Activity className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <div className="font-medium">{exercise.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {exercise.duration} min • {exercise.time}
+                    <div className="font-medium text-white">{exercise.exercise_name}</div>
+                    <div className="text-sm text-gray-400">
+                      {exercise.duration} min • {new Date(exercise.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline">{exercise.calories} cal</Badge>
+                  <Badge variant="outline" className="border-gray-600 text-white">{exercise.calories} cal</Badge>
                   <Badge className={getIntensityColor(exercise.intensity)}>
                     {exercise.intensity}
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removeExercise(exercise.id)}
+                    className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
             {exercises.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
+              <div className="text-center text-gray-400 py-8">
                 No exercises logged today. Start your fitness journey!
               </div>
             )}

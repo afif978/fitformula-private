@@ -17,8 +17,8 @@ const UserProfile = () => {
     height: '',
     currentWeight: '',
     goalWeight: '',
-    activityLevel: 'Moderate',
-    fitnessGoal: 'Weight Loss'
+    activityLevel: '',
+    fitnessGoal: ''
   });
 
   const handleSave = () => {
@@ -137,10 +137,17 @@ const UserProfile = () => {
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-white">Fitness Goals</h3>
                 <div className="flex flex-wrap gap-2">
-                  <Badge className="bg-blue-600 text-white">{profile.fitnessGoal}</Badge>
-                  <Badge variant="outline" className="border-gray-600 text-gray-300">
-                    Activity Level: {profile.activityLevel}
-                  </Badge>
+                  {profile.fitnessGoal && (
+                    <Badge className="bg-blue-600 text-white">{profile.fitnessGoal}</Badge>
+                  )}
+                  {profile.activityLevel && (
+                    <Badge variant="outline" className="border-gray-600 text-gray-300">
+                      Activity Level: {profile.activityLevel}
+                    </Badge>
+                  )}
+                  {!profile.fitnessGoal && !profile.activityLevel && (
+                    <p className="text-gray-400 text-sm">Complete your profile to see your fitness goals</p>
+                  )}
                 </div>
               </div>
             </CardContent>

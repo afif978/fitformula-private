@@ -116,9 +116,9 @@ const Index = () => {
             <Target className="h-4 w-4 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">0 lbs</div>
+            <div className="text-2xl font-bold text-white">-- kg</div>
             <p className="text-xs text-white">
-              Goal: 0 lbs | Lost: 0 lbs
+              Complete your profile to track progress
             </p>
             <Progress value={0} className="mt-2" />
           </CardContent>

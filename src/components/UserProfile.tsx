@@ -30,6 +30,26 @@ const UserProfile = () => {
     loadProfile();
   }, []);
 
+  // Convert cm to inches
+  const cmToInches = (cm: number) => {
+    return Math.round(cm / 2.54);
+  };
+
+  // Convert inches to cm
+  const inchesToCm = (inches: number) => {
+    return Math.round(inches * 2.54);
+  };
+
+  // Convert kg to lbs
+  const kgToLbs = (kg: number) => {
+    return Math.round(kg * 2.20462);
+  };
+
+  // Convert lbs to kg
+  const lbsToKg = (lbs: number) => {
+    return Math.round(lbs / 2.20462 * 100) / 100; // Keep 2 decimal places for storage
+  };
+
   const loadProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -45,15 +65,15 @@ const UserProfile = () => {
         }
 
         if (data) {
-          // Use type assertion to access the new columns
+          // Use type assertion to access the new columns and convert to imperial
           const profileData = data as any;
           setProfile({
             name: profileData.full_name || '',
             email: profileData.email || user.email || '',
             age: profileData.age?.toString() || '',
-            height: profileData.height?.toString() || '',
-            currentWeight: profileData.current_weight?.toString() || '',
-            goalWeight: profileData.goal_weight?.toString() || '',
+            height: profileData.height ? cmToInches(profileData.height).toString() : '',
+            currentWeight: profileData.current_weight ? kgToLbs(profileData.current_weight).toString() : '',
+            goalWeight: profileData.goal_weight ? kgToLbs(profileData.goal_weight).toString() : '',
             activityLevel: profileData.activity_level || '',
             fitnessGoal: profileData.fitness_goal || ''
           });
@@ -77,14 +97,15 @@ const UserProfile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      // Convert imperial back to metric for storage
       const profileData = {
         id: user.id,
         full_name: profile.name,
         email: profile.email,
         age: profile.age ? parseInt(profile.age) : null,
-        height: profile.height ? parseInt(profile.height) : null,
-        current_weight: profile.currentWeight ? parseFloat(profile.currentWeight) : null,
-        goal_weight: profile.goalWeight ? parseFloat(profile.goalWeight) : null,
+        height: profile.height ? inchesToCm(parseInt(profile.height)) : null,
+        current_weight: profile.currentWeight ? lbsToKg(parseFloat(profile.currentWeight)) : null,
+        goal_weight: profile.goalWeight ? lbsToKg(parseFloat(profile.goalWeight)) : null,
         activity_level: profile.activityLevel,
         fitness_goal: profile.fitnessGoal,
         updated_at: new Date().toISOString()
@@ -141,7 +162,7 @@ const UserProfile = () => {
                 variant="outline"
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                 disabled={loading}
-                className="border-gray-600 text-white hover:bg-gray-700"
+                className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600 hover:text-white"
               >
                 {isEditing ? (loading ? 'Saving...' : 'Save') : 'Edit'}
               </Button>
@@ -182,38 +203,38 @@ const UserProfile = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="height" className="text-white">Height (cm)</Label>
+                  <Label htmlFor="height" className="text-white">Height (inches)</Label>
                   <Input
                     id="height"
                     type="number"
                     value={profile.height}
                     onChange={(e) => setProfile(prev => ({ ...prev, height: e.target.value }))}
                     disabled={!isEditing}
-                    placeholder="Enter your height"
+                    placeholder="Enter your height in inches"
                     className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="currentWeight" className="text-white">Current Weight (kg)</Label>
+                  <Label htmlFor="currentWeight" className="text-white">Current Weight (lbs)</Label>
                   <Input
                     id="currentWeight"
                     type="number"
                     value={profile.currentWeight}
                     onChange={(e) => setProfile(prev => ({ ...prev, currentWeight: e.target.value }))}
                     disabled={!isEditing}
-                    placeholder="Enter current weight"
+                    placeholder="Enter current weight in pounds"
                     className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="goalWeight" className="text-white">Goal Weight (kg)</Label>
+                  <Label htmlFor="goalWeight" className="text-white">Goal Weight (lbs)</Label>
                   <Input
                     id="goalWeight"
                     type="number"
                     value={profile.goalWeight}
                     onChange={(e) => setProfile(prev => ({ ...prev, goalWeight: e.target.value }))}
                     disabled={!isEditing}
-                    placeholder="Enter goal weight"
+                    placeholder="Enter goal weight in pounds"
                     className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
                   />
                 </div>

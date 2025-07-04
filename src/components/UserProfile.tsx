@@ -45,21 +45,24 @@ const UserProfile = () => {
         }
 
         if (data) {
+          // Use type assertion to access the new columns
+          const profileData = data as any;
           setProfile({
-            name: data.full_name || '',
-            email: data.email || user.email || '',
-            age: data.age?.toString() || '',
-            height: data.height?.toString() || '',
-            currentWeight: data.current_weight?.toString() || '',
-            goalWeight: data.goal_weight?.toString() || '',
-            activityLevel: data.activity_level || '',
-            fitnessGoal: data.fitness_goal || ''
+            name: profileData.full_name || '',
+            email: profileData.email || user.email || '',
+            age: profileData.age?.toString() || '',
+            height: profileData.height?.toString() || '',
+            currentWeight: profileData.current_weight?.toString() || '',
+            goalWeight: profileData.goal_weight?.toString() || '',
+            activityLevel: profileData.activity_level || '',
+            fitnessGoal: profileData.fitness_goal || ''
           });
         } else {
           setProfile(prev => ({ ...prev, email: user.email || '' }));
         }
       }
     } catch (error: any) {
+      console.error('Load profile error:', error);
       toast({
         title: 'Error',
         description: 'Failed to load profile',
@@ -100,6 +103,7 @@ const UserProfile = () => {
       
       setIsEditing(false);
     } catch (error: any) {
+      console.error('Save profile error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to update profile',

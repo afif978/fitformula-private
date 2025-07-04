@@ -82,14 +82,28 @@ const Friends = () => {
         .neq('id', currentUser.user?.id)
         .limit(10);
 
-      if (error) throw error;
-      setSearchResults(data || []);
+      if (error) {
+        console.error('Search error:', error);
+        throw error;
+      }
+
+      // Transform the data to match our User interface
+      const users: User[] = (data || []).map((profile: any) => ({
+        id: profile.id,
+        full_name: profile.full_name || profile.email,
+        email: profile.email,
+        age: profile.age
+      }));
+
+      setSearchResults(users);
     } catch (error) {
+      console.error('Search users error:', error);
       toast({
         title: 'Error',
         description: 'Failed to search users',
         variant: 'destructive'
       });
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }

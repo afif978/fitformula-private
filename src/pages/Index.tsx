@@ -12,7 +12,6 @@ import FoodDiary from '@/components/FoodDiary';
 import ExerciseLog from '@/components/ExerciseLog';
 import UserProfile from '@/components/UserProfile';
 import Friends from '@/components/Friends';
-import WorkoutSuggestions from '@/components/WorkoutSuggestions';
 import LogoutButton from '@/components/LogoutButton';
 import DateSelector from '@/components/DateSelector';
 
@@ -126,7 +125,7 @@ const Index = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Button 
           onClick={() => setActiveTab('food')} 
           className="h-20 flex-col bg-blue-600 hover:bg-blue-700 text-white"
@@ -140,13 +139,6 @@ const Index = () => {
         >
           <Activity className="h-6 w-6 mb-2" />
           Log Exercise
-        </Button>
-        <Button 
-          onClick={() => setActiveTab('workouts')} 
-          className="h-20 flex-col bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Target className="h-6 w-6 mb-2" />
-          Workouts
         </Button>
         <Button 
           onClick={() => setActiveTab('friends')} 
@@ -195,11 +187,10 @@ const Index = () => {
     <div className="min-h-screen bg-gray-800">
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8 bg-gray-700 border-gray-600">
+          <TabsList className="grid w-full grid-cols-5 mb-8 bg-gray-700 border-gray-600">
             <TabsTrigger value="dashboard" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
             <TabsTrigger value="food" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Food Diary</TabsTrigger>
             <TabsTrigger value="exercise" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Exercise</TabsTrigger>
-            <TabsTrigger value="workouts" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Workouts</TabsTrigger>
             <TabsTrigger value="friends" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Friends</TabsTrigger>
             <TabsTrigger value="profile" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Profile</TabsTrigger>
           </TabsList>
@@ -214,10 +205,6 @@ const Index = () => {
 
           <TabsContent value="exercise">
             <ExerciseLog selectedDate={selectedDate} onDateChange={setSelectedDate} />
-          </TabsContent>
-
-          <TabsContent value="workouts">
-            <WorkoutSuggestions />
           </TabsContent>
 
           <TabsContent value="friends">

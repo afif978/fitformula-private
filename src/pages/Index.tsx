@@ -24,6 +24,32 @@ const Index = () => {
     return date.toISOString().split('T')[0];
   };
 
+  // Convert kg to lbs
+  const kgToLbs = (kg: number) => {
+    return Math.round(kg * 2.20462);
+  };
+
+  // Fetch user profile for weight progress
+  const { data: profile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      return data;
+    }
+  });
+
   // Fetch daily food logs
   const { data: foodLogs = [] } = useQuery({
     queryKey: ['dailyFoodLogs', formatDateForDB(selectedDate)],
@@ -59,6 +85,13 @@ const Index = () => {
   const totalCaloriesBurned = exerciseLogs.reduce((total, log) => total + log.calories, 0);
   const caloriesGoal = 2000; // This could be user-configurable later
   const caloriesRemaining = caloriesGoal - totalCaloriesConsumed + totalCaloriesBurned;
+
+  // Calculate weight progress in imperial
+  const currentWeightLbs = profile?.current_weight ? kgToLbs(profile.current_weight) : null;
+  const goalWeightLbs = profile?.goal_weight ? kgToLbs(profile.goal_weight) : null;
+  
+  const weightProgress = currentWeightLbs && goalWeightLbs ? 
+    Math.max(0, Math.min(100, ((currentWeightLbs - goalWeightLbs) / currentWeightLbs) * 100)) : 0;
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -115,11 +148,16 @@ const Index = () => {
             <Target className="h-4 w-4 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">-- kg</div>
+            <div className="text-2xl font-bold text-white">
+              {currentWeightLbs ? `${currentWeightLbs} lbs` : '-- lbs'}
+            </div>
             <p className="text-xs text-white">
-              Complete your profile to track progress
+              {currentWeightLbs && goalWeightLbs 
+                ? `Goal: ${goalWeightLbs} lbs`
+                : 'Complete your profile to track progress'
+              }
             </p>
-            <Progress value={0} className="mt-2" />
+            <Progress value={weightProgress} className="mt-2" />
           </CardContent>
         </Card>
       </div>
@@ -187,10 +225,9 @@ const Index = () => {
     <div className="min-h-screen bg-gray-800">
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8 bg-gray-700 border-gray-600">
+          <TabsList className="grid w-full grid-cols-4 mb-8 bg-gray-700 border-gray-600">
             <TabsTrigger value="dashboard" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
             <TabsTrigger value="food" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Food Diary</TabsTrigger>
-            <TabsTrigger value="exercise" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Exercise</TabsTrigger>
             <TabsTrigger value="friends" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Friends</TabsTrigger>
             <TabsTrigger value="profile" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Profile</TabsTrigger>
           </TabsList>

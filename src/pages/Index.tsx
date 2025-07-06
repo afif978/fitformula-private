@@ -14,6 +14,7 @@ import UserProfile from '@/components/UserProfile';
 import Friends from '@/components/Friends';
 import LogoutButton from '@/components/LogoutButton';
 import DateSelector from '@/components/DateSelector';
+import WorkoutSuggestions from '@/components/WorkoutSuggestions';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -225,9 +226,10 @@ const Index = () => {
     <div className="min-h-screen bg-gray-800">
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 bg-gray-700 border-gray-600">
+          <TabsList className="grid w-full grid-cols-5 mb-8 bg-gray-700 border-gray-600">
             <TabsTrigger value="dashboard" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
             <TabsTrigger value="food" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Food Diary</TabsTrigger>
+            <TabsTrigger value="exercise" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Exercise</TabsTrigger>
             <TabsTrigger value="friends" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Friends</TabsTrigger>
             <TabsTrigger value="profile" className="text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white">Profile</TabsTrigger>
           </TabsList>
@@ -241,7 +243,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="exercise">
-            <ExerciseLog selectedDate={selectedDate} onDateChange={setSelectedDate} />
+            <WorkoutSuggestions />
           </TabsContent>
 
           <TabsContent value="friends">

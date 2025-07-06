@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, Mail, Calendar, Target, Activity, Award } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +26,24 @@ const UserProfile = () => {
   });
 
   const { toast } = useToast();
+
+  const activityLevels = [
+    { value: 'sedentary', label: 'Sedentary (little or no exercise)' },
+    { value: 'lightly_active', label: 'Lightly Active (light exercise 1-3 days/week)' },
+    { value: 'moderately_active', label: 'Moderately Active (moderate exercise 3-5 days/week)' },
+    { value: 'very_active', label: 'Very Active (hard exercise 6-7 days/week)' },
+    { value: 'extremely_active', label: 'Extremely Active (very hard exercise & physical job)' }
+  ];
+
+  const fitnessGoals = [
+    { value: 'weight_loss', label: 'Weight Loss' },
+    { value: 'muscle_gain', label: 'Muscle Gain' },
+    { value: 'maintain_weight', label: 'Maintain Weight' },
+    { value: 'improve_endurance', label: 'Improve Endurance' },
+    { value: 'increase_strength', label: 'Increase Strength' },
+    { value: 'general_fitness', label: 'General Fitness' },
+    { value: 'athletic_performance', label: 'Athletic Performance' }
+  ];
 
   useEffect(() => {
     loadProfile();
@@ -240,25 +259,51 @@ const UserProfile = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="activityLevel" className="text-white">Activity Level</Label>
-                  <Input
-                    id="activityLevel"
-                    value={profile.activityLevel}
-                    onChange={(e) => setProfile(prev => ({ ...prev, activityLevel: e.target.value }))}
-                    disabled={!isEditing}
-                    placeholder="e.g., Sedentary, Active, Very Active"
-                    className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
-                  />
+                  {isEditing ? (
+                    <Select value={profile.activityLevel} onValueChange={(value) => setProfile(prev => ({ ...prev, activityLevel: value }))}>
+                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectValue placeholder="Select your activity level" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-700 border-gray-600">
+                        {activityLevels.map((level) => (
+                          <SelectItem key={level.value} value={level.value} className="text-white hover:bg-gray-600">
+                            {level.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="activityLevel"
+                      value={activityLevels.find(level => level.value === profile.activityLevel)?.label || profile.activityLevel}
+                      disabled={true}
+                      className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
+                    />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fitnessGoal" className="text-white">Fitness Goal</Label>
-                  <Input
-                    id="fitnessGoal"
-                    value={profile.fitnessGoal}
-                    onChange={(e) => setProfile(prev => ({ ...prev, fitnessGoal: e.target.value }))}
-                    disabled={!isEditing}
-                    placeholder="e.g., Weight Loss, Muscle Gain, Endurance"
-                    className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
-                  />
+                  {isEditing ? (
+                    <Select value={profile.fitnessGoal} onValueChange={(value) => setProfile(prev => ({ ...prev, fitnessGoal: value }))}>
+                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectValue placeholder="Select your fitness goal" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-700 border-gray-600">
+                        {fitnessGoals.map((goal) => (
+                          <SelectItem key={goal.value} value={goal.value} className="text-white hover:bg-gray-600">
+                            {goal.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="fitnessGoal"
+                      value={fitnessGoals.find(goal => goal.value === profile.fitnessGoal)?.label || profile.fitnessGoal}
+                      disabled={true}
+                      className="bg-gray-700 border-gray-600 text-white disabled:opacity-70"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -268,11 +313,13 @@ const UserProfile = () => {
                 <h3 className="text-lg font-medium text-white">Fitness Goals</h3>
                 <div className="flex flex-wrap gap-2">
                   {profile.fitnessGoal && (
-                    <Badge className="bg-blue-600 text-white">{profile.fitnessGoal}</Badge>
+                    <Badge className="bg-blue-600 text-white">
+                      {fitnessGoals.find(goal => goal.value === profile.fitnessGoal)?.label || profile.fitnessGoal}
+                    </Badge>
                   )}
                   {profile.activityLevel && (
                     <Badge variant="outline" className="border-gray-600 text-gray-300">
-                      Activity Level: {profile.activityLevel}
+                      Activity Level: {activityLevels.find(level => level.value === profile.activityLevel)?.label || profile.activityLevel}
                     </Badge>
                   )}
                   {!profile.fitnessGoal && !profile.activityLevel && (
